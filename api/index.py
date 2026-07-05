@@ -83,15 +83,15 @@ async def extract_pdf(file: UploadFile = File(...)):
         
     return {"chunks": final_chunks}
 
-from openai import AsyncOpenAI
+from groq import AsyncGroq
 
 @app.post("/api/translate")
 async def translate_text(req: TranslateRequest):
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        return Response(content=json.dumps({"detail": "OPENAI_API_KEY is not set in environment"}), status_code=400, media_type="application/json")
+        return Response(content=json.dumps({"detail": "GROQ_API_KEY is not set in environment"}), status_code=400, media_type="application/json")
         
-    client = AsyncOpenAI(api_key=api_key)
+    client = AsyncGroq(api_key=api_key)
     
     system_prompt = """You are an expert German to English translator. 
 Your task is to take a chunk of German text, segment it into short phrases or clauses (respecting commas and periods) to maintain complex grammatical context, and translate each clause to English.
@@ -106,7 +106,7 @@ Example output format:
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": req.text}
