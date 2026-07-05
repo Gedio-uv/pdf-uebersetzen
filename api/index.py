@@ -24,25 +24,29 @@ async def extract_pdf(file: UploadFile = File(...)):
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Must be a PDF file")
     
-    contents = await file.read()
     try:
-        doc = fitz.open(stream=contents, filetype="pdf")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid or unreadable PDF file")
+        contents = await file.read()
         
-    num_pages = len(doc)
-    if num_pages == 0:
-        raise HTTPException(status_code=400, detail="PDF is empty")
-        
-    # Validation: Check if it's mostly images
-    text_length = 0
-    for i in range(min(num_pages, 3)):
-        text_length += len(doc[i].get_text("text").strip())
-        
-    if text_length < 50 and num_pages > 0:
-        raise HTTPException(status_code=400, detail="This appears to be a scanned image PDF. It must contain extractable text.")
-        
-    try:
+        try:
+            doc = fitz.open(stream=contents, filetype="pdf")
+        except Exception:
+            return Response(content=json.dumps({"detail": "Invalid or unreadable PDF file"}), status_code=400, media_type="application/json")
+            
+        if doc.needs_pass:
+            return Response(content=json.dumps({"detail": "PDF is password protected or encrypted"}), status_code=400, media_type="application/json")
+            
+        num_pages = len(doc)
+        if num_pages == 0:
+            return Response(content=json.dumps({"detail": "PDF is empty"}), status_code=400, media_type="application/json")
+            
+        # Validation: Check if it's mostly images
+        text_length = 0
+        for i in range(min(num_pages, 3)):
+            text_length += len(doc[i].get_text("text").strip())
+            
+        if text_length < 50 and num_pages > 0:
+            return Response(content=json.dumps({"detail": "This appears to be a scanned image PDF. It must contain extractable text."}), status_code=400, media_type="application/json")
+            
         text_chunks = []
         
         # Skip first and last page if document is long enough
@@ -66,7 +70,6 @@ async def extract_pdf(file: UploadFile = File(...)):
         full_text = " ".join(text_chunks)
         
         # Basic sentence tokenization using regex to chunk
-        # We aim for chunks of roughly 1000-1500 characters
         sentences = re.split(r'(?<=[.!?]) +', full_text)
         
         final_chunks = []
@@ -82,6 +85,7 @@ async def extract_pdf(file: UploadFile = File(...)):
             final_chunks.append(current_chunk.strip())
             
         return {"chunks": final_chunks}
+        
     except Exception as e:
         return Response(content=json.dumps({"detail": f"Extraction Error: {str(e)}"}), status_code=400, media_type="application/json")
 
