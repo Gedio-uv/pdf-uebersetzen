@@ -62,8 +62,10 @@ export default function Home() {
       });
       
       if (!extractRes.ok) {
-        const err = await extractRes.json();
-        throw new Error(err.detail || "Failed to extract PDF. Ensure it contains text.");
+        const errText = await extractRes.text();
+        let errMsg = "Failed to extract PDF. Ensure it contains text.";
+        try { const err = JSON.parse(errText); errMsg = err.detail || errMsg; } catch(e) {}
+        throw new Error(errMsg);
       }
       
       const extractData = await extractRes.json();
@@ -87,8 +89,10 @@ export default function Home() {
         });
         
         if (!translateRes.ok) {
-          const err = await translateRes.json();
-          throw new Error(err.detail || `Translation failed at chunk ${i + 1}`);
+          const errText = await translateRes.text();
+          let errMsg = `Translation failed at chunk ${i + 1} (Status ${translateRes.status})`;
+          try { const err = JSON.parse(errText); errMsg = err.detail || errMsg; } catch(e) {}
+          throw new Error(errMsg);
         }
         
         const translateData = await translateRes.json();
@@ -105,7 +109,8 @@ export default function Home() {
       });
       
       if (!generateRes.ok) {
-         throw new Error("Failed to generate PDF");
+         const errText = await generateRes.text();
+         throw new Error(`Failed to generate PDF (Status ${generateRes.status})`);
       }
       
       const blob = await generateRes.blob();
