@@ -83,13 +83,15 @@ async def extract_pdf(file: UploadFile = File(...)):
         
     return {"chunks": final_chunks}
 
+from openai import AsyncOpenAI
+
 @app.post("/api/translate")
 async def translate_text(req: TranslateRequest):
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set in environment")
+        return Response(content=json.dumps({"detail": "OPENAI_API_KEY is not set in environment"}), status_code=500, media_type="application/json")
         
-    client = OpenAI(api_key=api_key)
+    client = AsyncOpenAI(api_key=api_key)
     
     system_prompt = """You are an expert German to English translator. 
 Your task is to take a chunk of German text, segment it into short phrases or clauses (respecting commas and periods) to maintain complex grammatical context, and translate each clause to English.
@@ -103,7 +105,7 @@ Example output format:
 }"""
 
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -116,7 +118,7 @@ Example output format:
         result = json.loads(content)
         return {"clauses": result.get("clauses", [])}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return Response(content=json.dumps({"detail": str(e)}), status_code=500, media_type="application/json")
 
 @app.post("/api/generate")
 async def generate_pdf(req: GenerateRequest):
