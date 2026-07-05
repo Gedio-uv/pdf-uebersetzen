@@ -42,45 +42,48 @@ async def extract_pdf(file: UploadFile = File(...)):
     if text_length < 50 and num_pages > 0:
         raise HTTPException(status_code=400, detail="This appears to be a scanned image PDF. It must contain extractable text.")
         
-    text_chunks = []
-    
-    # Skip first and last page if document is long enough
-    start_page = 1 if num_pages > 2 else 0
-    end_page = num_pages - 1 if num_pages > 2 else num_pages
-    
-    for i in range(start_page, end_page):
-        page = doc[i]
+    try:
+        text_chunks = []
         
-        # Filter out headers and footers (top 10%, bottom 10%)
-        rect = page.rect
-        clip_rect = fitz.Rect(rect.x0, rect.y0 + rect.height * 0.1, rect.x1, rect.y1 - rect.height * 0.1)
-        text = page.get_text("text", clip=clip_rect)
+        # Skip first and last page if document is long enough
+        start_page = 1 if num_pages > 2 else 0
+        end_page = num_pages - 1 if num_pages > 2 else num_pages
         
-        text = text.replace('\n', ' ').strip()
-        text = " ".join(text.split()) # normalize spaces
-        
-        if text:
-            text_chunks.append(text)
+        for i in range(start_page, end_page):
+            page = doc[i]
             
-    full_text = " ".join(text_chunks)
-    
-    # Basic sentence tokenization using regex to chunk
-    # We aim for chunks of roughly 1000-1500 characters
-    sentences = re.split(r'(?<=[.!?]) +', full_text)
-    
-    final_chunks = []
-    current_chunk = ""
-    for sentence in sentences:
-        if len(current_chunk) + len(sentence) > 1200:
+            # Filter out headers and footers (top 10%, bottom 10%)
+            rect = page.rect
+            clip_rect = fitz.Rect(rect.x0, rect.y0 + rect.height * 0.1, rect.x1, rect.y1 - rect.height * 0.1)
+            text = page.get_text("text", clip=clip_rect)
+            
+            text = text.replace('\n', ' ').strip()
+            text = " ".join(text.split()) # normalize spaces
+            
+            if text:
+                text_chunks.append(text)
+                
+        full_text = " ".join(text_chunks)
+        
+        # Basic sentence tokenization using regex to chunk
+        # We aim for chunks of roughly 1000-1500 characters
+        sentences = re.split(r'(?<=[.!?]) +', full_text)
+        
+        final_chunks = []
+        current_chunk = ""
+        for sentence in sentences:
+            if len(current_chunk) + len(sentence) > 1200:
+                final_chunks.append(current_chunk.strip())
+                current_chunk = sentence + " "
+            else:
+                current_chunk += sentence + " "
+                
+        if current_chunk.strip():
             final_chunks.append(current_chunk.strip())
-            current_chunk = sentence + " "
-        else:
-            current_chunk += sentence + " "
             
-    if current_chunk.strip():
-        final_chunks.append(current_chunk.strip())
-        
-    return {"chunks": final_chunks}
+        return {"chunks": final_chunks}
+    except Exception as e:
+        return Response(content=json.dumps({"detail": f"Extraction Error: {str(e)}"}), status_code=400, media_type="application/json")
 
 from groq import AsyncGroq
 
