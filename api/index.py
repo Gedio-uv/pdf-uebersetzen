@@ -102,6 +102,7 @@ async def translate_text(req: TranslateRequest):
     system_prompt = """You are an expert German to English translator. 
 Your task is to take a chunk of German text, segment it into short phrases or clauses (respecting commas and periods) to maintain complex grammatical context, and translate each clause to English.
 You MUST output strictly in JSON format as an object containing a "clauses" array.
+CRITICAL: You must properly escape all double quotes inside your JSON string values using a backslash (\"). Do NOT output unescaped double quotes inside strings.
 Example output format:
 {
   "clauses": [
@@ -111,11 +112,15 @@ Example output format:
 }"""
 
     try:
+        # Sanitize input to replace double quotes with single quotes
+        # This prevents LLaMA 3 from accidentally generating unescaped double quotes in JSON
+        safe_text = req.text.replace('"', "'")
+        
         response = await client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": req.text}
+                {"role": "user", "content": safe_text}
             ],
             response_format={ "type": "json_object" } 
         )
