@@ -63,8 +63,11 @@ export default function Home() {
       
       if (!extractRes.ok) {
         const errText = await extractRes.text();
-        let errMsg = "Failed to extract PDF. Ensure it contains text.";
-        try { const err = JSON.parse(errText); errMsg = err.detail || errMsg; } catch(e) {}
+        let errMsg = `Server Error (${extractRes.status}): ${errText.slice(0, 100)}`;
+        try { 
+          const err = JSON.parse(errText); 
+          errMsg = err.detail || errMsg; 
+        } catch(e) {}
         throw new Error(errMsg);
       }
       
