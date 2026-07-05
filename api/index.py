@@ -6,7 +6,6 @@ import fitz # PyMuPDF
 import os
 import json
 import re
-from openai import OpenAI
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import inch
