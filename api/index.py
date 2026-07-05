@@ -89,7 +89,7 @@ from openai import AsyncOpenAI
 async def translate_text(req: TranslateRequest):
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        return Response(content=json.dumps({"detail": "OPENAI_API_KEY is not set in environment"}), status_code=500, media_type="application/json")
+        return Response(content=json.dumps({"detail": "OPENAI_API_KEY is not set in environment"}), status_code=400, media_type="application/json")
         
     client = AsyncOpenAI(api_key=api_key)
     
@@ -118,7 +118,7 @@ Example output format:
         result = json.loads(content)
         return {"clauses": result.get("clauses", [])}
     except Exception as e:
-        return Response(content=json.dumps({"detail": str(e)}), status_code=500, media_type="application/json")
+        return Response(content=json.dumps({"detail": str(e)}), status_code=400, media_type="application/json")
 
 @app.post("/api/generate")
 async def generate_pdf(req: GenerateRequest):
