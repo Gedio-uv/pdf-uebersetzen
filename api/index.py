@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Any
 import fitz # PyMuPDF
 import os
 import json
@@ -17,7 +17,7 @@ class TranslateRequest(BaseModel):
     text: str
 
 class GenerateRequest(BaseModel):
-    clauses: List[Dict[str, str]]
+    clauses: List[Dict[str, Any]]
 
 @app.post("/api/extract")
 async def extract_pdf(file: UploadFile = File(...)):
@@ -175,8 +175,16 @@ async def generate_pdf(req: GenerateRequest):
     story = []
     
     for clause in req.clauses:
-        original = clause.get("original", "").strip()
-        translation = clause.get("translation", "").strip()
+        original = clause.get("original", "")
+        translation = clause.get("translation", "")
+        
+        if not isinstance(original, str):
+            original = str(original)
+        if not isinstance(translation, str):
+            translation = str(translation)
+            
+        original = original.strip()
+        translation = translation.strip()
         
         if original:
             story.append(Paragraph(original, german_style))
