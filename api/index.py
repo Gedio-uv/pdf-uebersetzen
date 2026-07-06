@@ -112,23 +112,29 @@ Example output format:
 
     try:
         # Sanitize input to replace ALL types of double quotes with single quotes
-        # This prevents LLaMA 3 from accidentally generating unescaped double quotes in JSON
         safe_text = req.text
         for q in ['"', '„', '“', '”', '«', '»']:
             safe_text = safe_text.replace(q, "'")
             
-        response = await client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": safe_text}
-            ],
-            response_format={ "type": "json_object" } 
-        )
-        
-        content = response.choices[0].message.content
-        result = json.loads(content)
-        return {"clauses": result.get("clauses", [])}
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                response = await client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": safe_text}
+                    ],
+                    response_format={ "type": "json_object" },
+                    temperature=0.1 + (attempt * 0.2) # slightly increase temperature on retry to change output
+                )
+                content = response.choices[0].message.content
+                result = json.loads(content)
+                return {"clauses": result.get("clauses", [])}
+            except Exception as e:
+                if attempt == max_attempts - 1:
+                    raise e
+                    
     except Exception as e:
         return Response(content=json.dumps({"detail": str(e)}), status_code=400, media_type="application/json")
 
